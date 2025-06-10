@@ -146,12 +146,24 @@ extension on List<Op> {
           break;
         case .else_:
           final addr = stack.pop();
+          
+          if (!<OpCode>[.if_].contains(this[addr].code)) {
+            throw SyntaxErrorException(this[addr].location, "`else` can only close `if` block.");
+          }
+
           this[addr] = this[addr].replaceOperand(ip);
           stack.push(ip);
           break;
         case .end:
           final addr = stack.pop();
-          this[addr] = this[addr].replaceOperand(ip);
+          
+          final endOp = this[addr];
+          if (<OpCode>[.if_, .else_].contains(endOp.code)) {
+            this[addr] = endOp.replaceOperand(ip);
+          } else {
+            throw SyntaxErrorException(this[addr].location, "`end` can only close `if-else` block.");
+          }
+          
           break;
         default:
           break;

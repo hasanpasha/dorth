@@ -7,6 +7,7 @@ enum OpCode {
   push,
   plus,
   minus,
+  equal,
   dump;
 }
 
@@ -16,6 +17,9 @@ class Op {
   final List<dynamic> operands;
 
   Op(this.code, this.token, [List<dynamic>? operands]) : operands = operands ?? [];
+
+  Location get location => token.location;
+  String get locationAsLabel => ".__${location.line}_${location.column}";
 
   @override
   String toString() => "${token.location}:$code ${operands.join(", ")}";
@@ -54,20 +58,26 @@ class SyntaxErrorException implements Exception {
 
 List<Op> tokensToOp(List<Token> tokens) {
   return tokens.map((token) {
-      switch (token.lexeme) {
-        case '.':
-          return Op(.dump, token);
-        case '+':
-          return Op(.plus, token);
-        case '-':
-          return Op(.minus, token);
-        default:
-          if (int.tryParse(token.lexeme) case var num?) {
-            return Op(.push, token, [num]);
-          }
-          throw SyntaxErrorException(token.location, "unknown word '${token.lexeme}'.");
-      }
-    }).toList();
+    Op op(OpCode code, [List<dynamic>? operands]) {
+      return Op(code, token, operands);
+    }
+
+    switch (token.lexeme) {
+      case '.':
+        return op(.dump);
+      case '+':
+        return op(.plus);
+      case '-':
+        return op(.minus);
+      case '=':
+        return op(.equal);
+      default:
+        if (int.tryParse(token.lexeme) case var num?) {
+          return op(.push, [num]);
+        }
+        throw SyntaxErrorException(token.location, "unknown word '${token.lexeme}'.");
+    }
+  }).toList();
 }
 
 List<Token> lex(String source, [String? filepath]) {
@@ -118,7 +128,7 @@ extension on String {
 }
 
 void interpretProgram(List<Op> program) {
-  final stack = Stack<num>();
+  final stack = Stack<int>();
 
   for (var op in program) {
     switch (op.code) {
@@ -134,6 +144,11 @@ void interpretProgram(List<Op> program) {
         final b = stack.pop();
         final a = stack.pop();
         stack.push(a - b);
+        break;
+      case .equal:
+        final b = stack.pop();
+        final a = stack.pop();
+        stack.push(a == b ? 1 : 0);
         break;
       case .dump:
         final x = stack.pop();
@@ -214,6 +229,10 @@ class CodeGen {
       "ret",
     ]);
   }
+  
+  void comment(String comment) {
+    writeln("// $comment");
+  }
 }
 
 Future<void> compileProgram(List<Op> program, Uri outputPath) async {
@@ -237,21 +256,35 @@ Future<void> compileProgram(List<Op> program, Uri outputPath) async {
   for (var op in program) {
     switch (op.code) {
       case .push:
+        gen.comment("push ${op.operands.first}");
         gen.push(op.operands.first);
         break;
       case .plus:
-        gen.pop("rax");
+        gen.comment("plus");
         gen.pop("rdi");
+        gen.pop("rax");
         gen.add("rax", "rdi");
         gen.push("rax");
         break;
       case .minus:
+        gen.comment("minus");
         gen.pop("rdi");
         gen.pop("rax");
         gen.sub("rax", "rdi");
         gen.push("rax");
         break;
+      case .equal:
+        gen.comment("equal");
+        gen.writeln("mov rcx, 1");
+        gen.pop("rdi");
+        gen.pop("rax");
+        gen.writeln("cmp rax, rdi");
+        gen.writeln("mov rax, 0");
+        gen.writeln("cmove rax, rcx");
+        gen.push("rax");
+        break;
       case .dump:
+        gen.comment("dump");
         gen.pop("rdi");
         gen.writeln("call dump");
         break;

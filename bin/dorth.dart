@@ -31,6 +31,12 @@ void main(List<String> arguments) async {
       await command(["as", asmUri.path, "-o", objUri.path]);
       final exeUri = asmUri.replaceExtension('');
       await command(["ld", objUri.path, "-o", exeUri.path]);
+      if (args.isNotEmpty) {
+        final flag = args.removeFirst();
+        if (flag == "-r") {
+          await command([exeUri.path], verbose: true);
+        }
+      }
       break;
     default:
       usage();
@@ -88,12 +94,12 @@ SUBCOMMANDS:
     com    <file>    compile the program."""); 
 }
 
-Future<bool> command(List<String> args, [bool verbose = false]) async {
+Future<bool> command(List<String> args, {bool verbose = false}) async {
   print("\$ ${args.join(' ')}");
   final result = await Process.run(args.first, args.sublist(1));
   
   if (verbose) {
-    print(result.stdout);
+    stdout.write(result.stdout.toString().trim());
   }
   
   if (result.exitCode != 0) {

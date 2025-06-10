@@ -8,10 +8,15 @@ enum OpCode {
   plus,
   minus,
   equal,
+  gt,
+  lt,
   dump,
+  dup,
   if_,
   end,
   else_,
+  while_,
+  do_,
 }
 
 class Op {
@@ -113,18 +118,28 @@ extension on List<Token> {
       switch (token.lexeme) {
         case '.':
           return op(.dump);
+        case "dup":
+          return op(.dup);
         case '+':
           return op(.plus);
         case '-':
           return op(.minus);
         case '=':
           return op(.equal);
+        case '>':
+          return op(.gt);
+        case '<':
+          return op(.lt);
         case "if":
           return op(.if_);
         case "end":
           return op(.end);
         case "else":
           return op(.else_);
+        case "while":
+          return op(.while_);
+        case "do":
+          return op(.do_);
         default:
           if (int.tryParse(token.lexeme) case var num?) {
             return op(.push, num);
@@ -141,31 +156,46 @@ extension on List<Op> {
     for (var ip = 0; ip < length; ip++) {
       Op op = this[ip];
       switch (op.code) {
+        case .push:
+        case .plus:
+        case .minus:
+        case .equal:
+        case .gt:
+        case .lt:
+        case .dump:
+        case .dup:
+          break;
         case .if_:
           stack.push(ip);
           break;
         case .else_:
           final addr = stack.pop();
-          
           if (!<OpCode>[.if_].contains(this[addr].code)) {
             throw SyntaxErrorException(this[addr].location, "`else` can only close `if` block.");
           }
-
           this[addr] = this[addr].replaceOperand(ip);
           stack.push(ip);
           break;
         case .end:
           final addr = stack.pop();
-          
-          final endOp = this[addr];
-          if (<OpCode>[.if_, .else_].contains(endOp.code)) {
-            this[addr] = endOp.replaceOperand(ip);
+          final blockStart = this[addr];
+          if (<OpCode>[.if_, .else_].contains(blockStart.code)) {
+            this[addr] = blockStart.replaceOperand(ip);
+            this[ip] = this[ip].replaceOperand(ip);
+          } else if (blockStart.code == .do_) {
+            this[ip] = this[ip].replaceOperand(blockStart.operand);
+            this[addr] = blockStart.replaceOperand(ip);
           } else {
-            throw SyntaxErrorException(this[addr].location, "`end` can only close `if-else` block.");
+            throw SyntaxErrorException(this[addr].location, "`end` can only close `if-else` or `while` block.");
           }
-          
           break;
-        default:
+        case .while_:
+          stack.push(ip);
+          break;
+        case .do_:
+          final addr = stack.pop();
+          this[ip] = this[ip].replaceOperand(addr);
+          stack.push(ip);
           break;
       }
     }
@@ -212,6 +242,16 @@ void interpretProgram(List<Op> program) {
         final a = stack.pop();
         stack.push(a == b ? 1 : 0);
         break;
+      case .gt:
+        final b = stack.pop();
+        final a = stack.pop();
+        stack.push(a > b ? 1 : 0);
+        break;
+      case .lt:
+        final b = stack.pop();
+        final a = stack.pop();
+        stack.push(a < b ? 1 : 0);
+        break;
       case .if_:
         final x = stack.pop();
         if (x == 0) {
@@ -219,6 +259,7 @@ void interpretProgram(List<Op> program) {
         }
         break;
       case .end:
+        ip = op.operand;
         break;
       case .else_:
         ip = op.operand;
@@ -226,6 +267,19 @@ void interpretProgram(List<Op> program) {
       case .dump:
         final x = stack.pop();
         print(x);
+        break;
+      case .dup:
+        final x = stack.pop();
+        stack.push(x);
+        stack.push(x);
+        break;
+      case .while_:
+        break;
+      case .do_:
+        final x = stack.pop();
+        if (x == 0) {
+          ip = op.operand;
+        }
     }
   }
 }
@@ -357,10 +411,35 @@ Future<void> compileProgram(List<Op> program, Uri outputPath) async {
         gen.writeln("cmove rax, rcx");
         gen.push("rax");
         break;
+      case .gt:
+        gen.comment("equal");
+        gen.writeln("mov rcx, 1");
+        gen.pop("rdi");
+        gen.pop("rax");
+        gen.writeln("cmp rax, rdi");
+        gen.writeln("mov rax, 0");
+        gen.writeln("cmovg rax, rcx");
+        gen.push("rax");
+        break;
+      case .lt:
+        gen.comment("equal");
+        gen.writeln("mov rcx, 1");
+        gen.pop("rdi");
+        gen.pop("rax");
+        gen.writeln("cmp rax, rdi");
+        gen.writeln("mov rax, 0");
+        gen.writeln("cmovl rax, rcx");
+        gen.push("rax");
+        break;
       case .dump:
         gen.comment("dump");
         gen.pop("rdi");
         gen.writeln("call dump");
+        break;
+      case .dup:
+        gen.pop("rax");
+        gen.push("rax");
+        gen.push("rax");
         break;
       case .if_:
         gen.comment("if");
@@ -370,12 +449,23 @@ Future<void> compileProgram(List<Op> program, Uri outputPath) async {
         break;
       case .end:
         gen.comment("end");
+        gen.writeln("jmp .label_${op.operand}");
         gen.writeln(".label_$ip:");
         break;
-      case OpCode.else_:
+      case .else_:
         gen.comment("else");
         gen.writeln("jmp .label_${op.operand}");
         gen.writeln(".label_$ip:");
+        break;
+      case OpCode.while_:
+        gen.comment("while");
+        gen.writeln(".label_$ip:");
+        break;
+      case OpCode.do_:
+        gen.comment("do");
+        gen.pop("rax");
+        gen.writeln("test rax, rax");
+        gen.writeln("jz .label_${op.operand}");
         break;
     }
   }

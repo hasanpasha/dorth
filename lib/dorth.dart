@@ -9,7 +9,9 @@ enum OpCode {
   minus,
   equal,
   gt,
+  ge,
   lt,
+  le,
   dump,
   dup,
   if_,
@@ -128,8 +130,12 @@ extension on List<Token> {
           return op(.equal);
         case '>':
           return op(.gt);
+        case ">=":
+          return op(.ge);
         case '<':
           return op(.lt);
+        case "<=":
+          return op(.le);
         case "if":
           return op(.if_);
         case "end":
@@ -161,7 +167,9 @@ extension on List<Op> {
         case .minus:
         case .equal:
         case .gt:
+        case .ge:
         case .lt:
+        case .le:
         case .dump:
         case .dup:
           break;
@@ -197,6 +205,7 @@ extension on List<Op> {
           this[ip] = this[ip].replaceOperand(addr);
           stack.push(ip);
           break;
+          
       }
     }
 
@@ -247,10 +256,20 @@ void interpretProgram(List<Op> program) {
         final a = stack.pop();
         stack.push(a > b ? 1 : 0);
         break;
+      case .ge:
+        final b = stack.pop();
+        final a = stack.pop();
+        stack.push(a >= b ? 1 : 0);
+        break;
       case .lt:
         final b = stack.pop();
         final a = stack.pop();
         stack.push(a < b ? 1 : 0);
+        break;
+      case .le:
+        final b = stack.pop();
+        final a = stack.pop();
+        stack.push(a <= b ? 1 : 0);
         break;
       case .if_:
         final x = stack.pop();
@@ -280,6 +299,7 @@ void interpretProgram(List<Op> program) {
         if (x == 0) {
           ip = op.operand;
         }
+        
     }
   }
 }
@@ -412,7 +432,7 @@ Future<void> compileProgram(List<Op> program, Uri outputPath) async {
         gen.push("rax");
         break;
       case .gt:
-        gen.comment("equal");
+        gen.comment("gt");
         gen.writeln("mov rcx, 1");
         gen.pop("rdi");
         gen.pop("rax");
@@ -421,14 +441,34 @@ Future<void> compileProgram(List<Op> program, Uri outputPath) async {
         gen.writeln("cmovg rax, rcx");
         gen.push("rax");
         break;
+      case .ge:
+        gen.comment("ge");
+        gen.writeln("mov rcx, 1");
+        gen.pop("rdi");
+        gen.pop("rax");
+        gen.writeln("cmp rax, rdi");
+        gen.writeln("mov rax, 0");
+        gen.writeln("cmovge rax, rcx");
+        gen.push("rax");
+        break;
       case .lt:
-        gen.comment("equal");
+        gen.comment("lt");
         gen.writeln("mov rcx, 1");
         gen.pop("rdi");
         gen.pop("rax");
         gen.writeln("cmp rax, rdi");
         gen.writeln("mov rax, 0");
         gen.writeln("cmovl rax, rcx");
+        gen.push("rax");
+        break;
+      case OpCode.le:
+        gen.comment("ge");
+        gen.writeln("mov rcx, 1");
+        gen.pop("rdi");
+        gen.pop("rax");
+        gen.writeln("cmp rax, rdi");
+        gen.writeln("mov rax, 0");
+        gen.writeln("cmovle rax, rcx");
         gen.push("rax");
         break;
       case .dump:

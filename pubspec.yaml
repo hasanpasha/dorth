@@ -1,14 +1,12 @@
 name: dorth
-description: A sample command-line application.
+description: Dorth programming language.
 version: 1.0.0
-# repository: https://github.com/my_org/my_repo
+repository: https://github.com/hasanpasha/dorth
 
 environment:
   sdk: ^3.9.0-100.2.beta
 
-# Add regular dependencies here.
 dependencies:
-  # path: ^1.8.0
   quiver: ^3.2.2
 
 dev_dependencies:

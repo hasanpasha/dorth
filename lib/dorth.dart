@@ -8,9 +8,10 @@ enum OpCode {
   plus,
   minus,
   equal,
+  dump,
   if_,
   end,
-  dump;
+  else_,
 }
 
 class Op {
@@ -122,6 +123,8 @@ extension on List<Token> {
           return op(.if_);
         case "end":
           return op(.end);
+        case "else":
+          return op(.else_);
         default:
           if (int.tryParse(token.lexeme) case var num?) {
             return op(.push, num);
@@ -139,6 +142,11 @@ extension on List<Op> {
       Op op = this[ip];
       switch (op.code) {
         case .if_:
+          stack.push(ip);
+          break;
+        case .else_:
+          final addr = stack.pop();
+          this[addr] = this[addr].replaceOperand(ip);
           stack.push(ip);
           break;
         case .end:
@@ -199,6 +207,9 @@ void interpretProgram(List<Op> program) {
         }
         break;
       case .end:
+        break;
+      case .else_:
+        ip = op.operand;
         break;
       case .dump:
         final x = stack.pop();
@@ -347,6 +358,11 @@ Future<void> compileProgram(List<Op> program, Uri outputPath) async {
         break;
       case .end:
         gen.comment("end");
+        gen.writeln(".label_$ip:");
+        break;
+      case OpCode.else_:
+        gen.comment("else");
+        gen.writeln("jmp .label_${op.operand}");
         gen.writeln(".label_$ip:");
         break;
     }

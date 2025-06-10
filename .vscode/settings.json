@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "types.h": "c",
+        "syscall.h": "c",
+        "unistd.h": "c",
+        "unistd_x32.h": "c",
+        "unistd_64.h": "c"
+    }
+}

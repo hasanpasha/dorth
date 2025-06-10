@@ -8,21 +8,29 @@ enum OpCode {
   plus,
   minus,
   equal,
+  if_,
+  end,
   dump;
 }
 
 class Op {
   final Token token;
   final OpCode code;
-  final List<dynamic> operands;
+  dynamic operand;
 
-  Op(this.code, this.token, [List<dynamic>? operands]) : operands = operands ?? [];
+  Op(this.code, this.token, [this.operand]);
 
   Location get location => token.location;
   String get locationAsLabel => ".__${location.line}_${location.column}";
 
   @override
-  String toString() => "${token.location}:$code ${operands.join(", ")}";
+  String toString() => "${token.location}:$code $operand";
+
+  Op replaceOperand(dynamic operand) {
+    final newOp = this;
+    newOp.operand = operand;
+    return newOp;
+  }
 }
 
 class Location {
@@ -54,30 +62,6 @@ class SyntaxErrorException implements Exception {
 
   @override
   String toString() => "$location: $message";
-}
-
-List<Op> tokensToOp(List<Token> tokens) {
-  return tokens.map((token) {
-    Op op(OpCode code, [List<dynamic>? operands]) {
-      return Op(code, token, operands);
-    }
-
-    switch (token.lexeme) {
-      case '.':
-        return op(.dump);
-      case '+':
-        return op(.plus);
-      case '-':
-        return op(.minus);
-      case '=':
-        return op(.equal);
-      default:
-        if (int.tryParse(token.lexeme) case var num?) {
-          return op(.push, [num]);
-        }
-        throw SyntaxErrorException(token.location, "unknown word '${token.lexeme}'.");
-    }
-  }).toList();
 }
 
 List<Token> lex(String source, [String? filepath]) {
@@ -114,8 +98,65 @@ List<Token> lex(String source, [String? filepath]) {
     .toList();
 }
 
-List<Op> parseProgram(String source, [String? filepath]) {
-  return tokensToOp(lex(source, filepath));
+List<Op> parseProgram(String source, [String? filepath]) =>
+  lex(source, filepath)
+  .parse()
+  .crossreferenceBlocks();
+
+
+extension on List<Token> {
+  List<Op> parse() {
+    return map((token) {
+      Op op(OpCode code, [dynamic operand]) => Op(code, token, operand);
+      
+      switch (token.lexeme) {
+        case '.':
+          return op(.dump);
+        case '+':
+          return op(.plus);
+        case '-':
+          return op(.minus);
+        case '=':
+          return op(.equal);
+        case "if":
+          return op(.if_);
+        case "end":
+          return op(.end);
+        default:
+          if (int.tryParse(token.lexeme) case var num?) {
+            return op(.push, num);
+          }
+          throw SyntaxErrorException(token.location, "unknown word '${token.lexeme}'.");
+      }
+    }).toList();
+  }
+}
+
+extension on List<Op> {
+  List<Op> crossreferenceBlocks() {
+    final stack = Stack<int>();
+    for (var ip = 0; ip < length; ip++) {
+      Op op = this[ip];
+      switch (op.code) {
+        case .if_:
+          stack.push(ip);
+          break;
+        case .end:
+          final addr = stack.pop();
+          this[addr] = this[addr].replaceOperand(ip);
+          break;
+        default:
+          break;
+      }
+    }
+
+    if (stack.canPop()) {
+      final op = this[stack.pop()];
+      throw SyntaxErrorException(op.location, "`${op.token.lexeme}` block has not been closed.");
+    }
+
+    return this;
+  }
 }
 
 Future<List<Op>> parseFile(String filepath) async {
@@ -130,10 +171,11 @@ extension on String {
 void interpretProgram(List<Op> program) {
   final stack = Stack<int>();
 
-  for (var op in program) {
+  for (int ip = 0; ip < program.length; ip++) {
+    Op op = program[ip];
     switch (op.code) {
       case .push:
-        stack.push(op.operands[0]);
+        stack.push(op.operand);
         break;
       case .plus:
         final b = stack.pop();
@@ -149,6 +191,14 @@ void interpretProgram(List<Op> program) {
         final b = stack.pop();
         final a = stack.pop();
         stack.push(a == b ? 1 : 0);
+        break;
+      case .if_:
+        final x = stack.pop();
+        if (x == 0) {
+          ip = op.operand;
+        }
+        break;
+      case .end:
         break;
       case .dump:
         final x = stack.pop();
@@ -253,11 +303,12 @@ Future<void> compileProgram(List<Op> program, Uri outputPath) async {
     "_start:",
   ]);
 
-  for (var op in program) {
+  for (int ip = 0; ip < program.length; ip++) {
+    final op = program[ip];
     switch (op.code) {
       case .push:
-        gen.comment("push ${op.operands.first}");
-        gen.push(op.operands.first);
+        gen.comment("push ${op.operand}");
+        gen.push(op.operand);
         break;
       case .plus:
         gen.comment("plus");
@@ -287,6 +338,16 @@ Future<void> compileProgram(List<Op> program, Uri outputPath) async {
         gen.comment("dump");
         gen.pop("rdi");
         gen.writeln("call dump");
+        break;
+      case .if_:
+        gen.comment("if");
+        gen.pop("rax");
+        gen.writeln("test rax, rax");
+        gen.writeln("jz .label_${op.operand}");
+        break;
+      case .end:
+        gen.comment("end");
+        gen.writeln(".label_$ip:");
         break;
     }
   }

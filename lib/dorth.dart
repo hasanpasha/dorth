@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:quiver/iterables.dart';
 
 import 'package:dorth/stack.dart';
 
@@ -10,32 +11,113 @@ enum OpCode {
 }
 
 class Op {
+  final Token token;
   final OpCode code;
   final List<dynamic> operands;
 
-  Op(this.code, [List<dynamic>? operands]) : operands = operands ?? [];
+  Op(this.code, this.token, [List<dynamic>? operands]) : operands = operands ?? [];
 
   @override
-  String toString() => "$code ${operands.join(", ")}";
-
-  static Op push(num x) {
-    return Op(OpCode.push, [x]);
-  }
-
-  static Op plus() {
-    return Op(OpCode.plus);
-  }
-
-  static Op minus() {
-    return Op(OpCode.minus);
-  }
-
-  static Op dump() {
-    return Op(OpCode.dump);
-  }
+  String toString() => "${token.location}:$code ${operands.join(", ")}";
 }
 
-void simulateProgram(List<Op> program) {
+class Location {
+  final int line;
+  final int column;
+  final String? filename;
+
+  Location(this.line, this.column, [this.filename]);
+
+  @override
+  String toString() =>  "${filename ?? ""}:$line:$column";
+}
+
+class Token {
+  final String lexeme;
+  final Location location;
+
+  const Token(this.lexeme, this.location);
+  
+  @override
+  String toString() => "$location:$lexeme";
+}
+
+class SyntaxErrorException implements Exception {
+  final Location location;
+  final String? message;
+
+  SyntaxErrorException(this.location, [this.message]);
+
+  @override
+  String toString() => "$location: $message";
+}
+
+List<Op> tokensToOp(List<Token> tokens) {
+  return tokens.map((token) {
+      switch (token.lexeme) {
+        case '.':
+          return Op(.dump, token);
+        case '+':
+          return Op(.plus, token);
+        case '-':
+          return Op(.minus, token);
+        default:
+          if (int.tryParse(token.lexeme) case var num?) {
+            return Op(.push, token, [num]);
+          }
+          throw SyntaxErrorException(token.location, "unknown word '${token.lexeme}'.");
+      }
+    }).toList();
+}
+
+List<Token> lex(String source, [String? filepath]) {
+  return enumerate(source
+    .split('\n'))
+    .map((indexed) {
+      final lineNumber = indexed.index;
+      final line = indexed.value;
+
+      List<Token> words = [];
+
+      String buffer = "";
+      int start = 0;
+      for (int i = 0; i < line.length; i++) {
+        String cur = line.substring(i, i+1);
+        
+        if (!cur.isWhiteSpace) {
+          buffer += cur;
+        } 
+        
+        if (cur.isWhiteSpace || i == line.length-1) {
+          if (buffer.isNotEmpty) {
+            words.add(Token(buffer, Location(lineNumber+1, start+1, filepath)));
+          }
+
+          start = i+1;
+          buffer = "";
+        }
+      }
+
+      return words;
+    })
+    .expand((e) => e)
+    .toList();
+}
+
+List<Op> parseProgram(String source, [String? filepath]) {
+  return tokensToOp(lex(source, filepath));
+}
+
+Future<List<Op>> parseFile(String filepath) async {
+  final source = await File(filepath).readAsString();
+  return parseProgram(source, filepath);
+}
+
+extension on String {
+  bool get isWhiteSpace => ['\n', '\t', '\r', ' ', '\f'].contains(this);
+}
+
+void interpretProgram(List<Op> program) {
   final stack = Stack<num>();
 
   for (var op in program) {
@@ -64,15 +146,14 @@ class CodeGen {
   late File file;
   late IOSink output;
 
-  CodeGen(String outputName) {
-    file = File(outputName);
+  CodeGen(Uri outputName) {
+    file = File(outputName.path);
     output = file.openWrite();
   }
 
-  Future<Uri> done() async {
+  Future<void> done() async {
     await output.flush();
     await output.close();
-    return file.absolute.uri;
   }
 
   void writeln(String str) {
@@ -135,7 +216,7 @@ class CodeGen {
   }
 }
 
-Future<Uri> compileProgram(List<Op> program, [String outputPath = "output.S"]) async {
+Future<void> compileProgram(List<Op> program, Uri outputPath) async {
   final gen = CodeGen(outputPath);
   
   gen.writeln(".intel_syntax noprefix");
@@ -183,5 +264,5 @@ Future<Uri> compileProgram(List<Op> program, [String outputPath = "output.S"]) a
     "syscall",
   ]);
 
-  return gen.done();
+  await gen.done();
 }

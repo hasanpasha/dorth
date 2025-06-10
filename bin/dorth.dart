@@ -1,33 +1,64 @@
+import 'dart:collection';
+import 'dart:convert';
 import 'dart:io';
 
-import 'package:dorth/dorth.dart' as dorth;
-
-final List<dorth.Op> program = [.push(34), .push(35), .plus(), .dump(), .push(500), .push(80), .minus(), .dump(), .push(0), .dump()];
+import 'package:dorth/dorth.dart';
 
 void main(List<String> arguments) async {  
-  if (arguments.length == 1) {
-    switch (arguments[0]) {
-      case "sim":
-        dorth.simulateProgram(program);
-        break;
-      case "com":
-        final asmUri = await dorth.compileProgram(program, "output.S");
-        final objUri = asmUri.replaceExtension('.o');
-        await command(["as", asmUri.path, "-o", objUri.path]);
-        final exeUri = asmUri.replaceExtension('');
-        await command(["ld", objUri.path, "-o", exeUri.path]);
-        break;
-      default:
-        usage();
-        print("No subcommand is provided.");
-        exit(1);
-    }
-  } else {
-    usage();
+  final args = Queue<String>.from(arguments);
+  if (args.isEmpty) {
+    repl();
+  }
+
+  final cmd = args.removeFirst();
+  if (args.isEmpty) {
+    print("Error: no input file is provided.");
+    exit(1);
+  }
+  final inputFilePath = args.removeFirst();
+  
+  switch (cmd) {
+    case "sim":
+      final program = await parseFile(inputFilePath);
+      interpretProgram(program);
+      break;
+    case "com":
+      final inputFileUri = Uri.file(inputFilePath);
+      final program = await parseFile(inputFilePath);
+      final asmUri = inputFileUri.replaceExtension('.S');
+      await compileProgram(program, asmUri);
+      final objUri = asmUri.replaceExtension('.o');
+      await command(["as", asmUri.path, "-o", objUri.path]);
+      final exeUri = asmUri.replaceExtension('');
+      await command(["ld", objUri.path, "-o", exeUri.path]);
+      break;
+    default:
+      usage();
+      print("No subcommand is provided.");
+      exit(1);
   }
 }
 
-extension on Uri {
+void repl() {
+  while (true) {
+    stdout.write("> ");
+    final line = stdin.readLineSync(encoding: utf8);
+    
+    if (line == null || line == ".quit" || line == ".exit") {
+      break;
+    } 
+
+    try {
+      final program = parseProgram(line);
+      interpretProgram(program);
+    } catch (e) {
+      print(e);
+    }
+  }
+  exit(0);
+}
+
+extension UriPathExtension on Uri {
   String baseFilename() {
     return pathSegments.last;
   }
@@ -53,8 +84,8 @@ void usage() {
   print(
 """Usage: dorth <subcommand> [args]
 SUBCOMMANDS:
-    sim        simulate the program.
-    com        compile the program."""); 
+    sim    <file>    simulate the program.
+    com    <file>    compile the program."""); 
 }
 
 Future<bool> command(List<String> args, [bool verbose = false]) async {
@@ -62,11 +93,11 @@ Future<bool> command(List<String> args, [bool verbose = false]) async {
   final result = await Process.run(args.first, args.sublist(1));
   
   if (verbose) {
-    // print(result.stdout);
+    print(result.stdout);
   }
   
   if (result.exitCode != 0) {
-    // print(result.stderr);
+    print(result.stderr);
     return false;
   } else {
     return true;

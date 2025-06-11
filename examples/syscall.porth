@@ -1,0 +1,11 @@
+mem 0 + 89 .
+mem 1 + 90 .
+mem 2 + 91 .
+
+3       // count
+mem     // buf
+1       // fd
+1       // the syscall number
+syscall3 // result pushed to the stack
+
+60 syscall1

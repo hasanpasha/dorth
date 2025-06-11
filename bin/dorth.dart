@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dorth/dorth.dart';
+import 'package:dorth/interpreter.dart';
 
 void main(List<String> arguments) async {  
   final args = Queue<String>.from(arguments);
@@ -46,6 +47,11 @@ void main(List<String> arguments) async {
 }
 
 void repl() {
+  final interpreter = Interpreter();
+  interpreter.registerExitCallback((code) {
+    print("going to exit with $code code.");
+  });
+
   while (true) {
     stdout.write("> ");
     final line = stdin.readLineSync(encoding: utf8);
@@ -55,8 +61,8 @@ void repl() {
     } 
 
     try {
-      final program = parseProgram(line);
-      interpretProgram(program);
+      final program = parseProgram(line);      
+      interpreter.interpret(program);
     } catch (e) {
       print(e);
     }
@@ -103,9 +109,9 @@ Future<bool> command(List<String> args, {bool verbose = false}) async {
   }
   
   if (result.exitCode != 0) {
-    print(result.stderr);
+    print("abnormal exit ${result.exitCode}: ${result.stderr}");
     return false;
-  } else {
-    return true;
   }
+  
+  return true;
 }

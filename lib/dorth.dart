@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:dorth/interpreter.dart';
 import 'package:quiver/iterables.dart';
 
 import 'package:dorth/stack.dart';
@@ -24,6 +24,7 @@ enum OpCode {
   mem,
   store,
   load,
+  syscall,
 }
 
 class Op {
@@ -163,6 +164,20 @@ extension on List<Token> {
           return op(.store);
         case ',':
           return op(.load);
+        case "syscall0":
+          return op(.syscall, 0);
+        case "syscall1":
+          return op(.syscall, 1);
+        case "syscall2":
+          return op(.syscall, 2);
+        case "syscall3":
+          return op(.syscall, 3);
+        case "syscall4":
+          return op(.syscall, 4);
+        case "syscall5":
+          return op(.syscall, 5);
+        case "syscall6":
+          return op(.syscall, 6);
         default:
           if (int.tryParse(token.lexeme) case var num?) {
             return op(.push, num);
@@ -226,8 +241,8 @@ extension on List<Op> {
         case .mem:
         case .store:
         case .load:
+        case .syscall:
           break;
-          
       }
     }
 
@@ -250,99 +265,7 @@ extension on String {
 }
 
 void interpretProgram(List<Op> program, {int memoryCapacity = 64000}) {
-  final stack = Stack<int>();
-  final mem = Uint8List(memoryCapacity);
-
-  for (int ip = 0; ip < program.length; ip++) {
-    Op op = program[ip];
-    switch (op.code) {
-      case .push:
-        stack.push(op.operand);
-        break;
-      case .plus:
-        final b = stack.pop();
-        final a = stack.pop();
-        stack.push(a + b);
-        break;
-      case .minus:
-        final b = stack.pop();
-        final a = stack.pop();
-        stack.push(a - b);
-        break;
-      case .equal:
-        final b = stack.pop();
-        final a = stack.pop();
-        stack.push(a == b ? 1 : 0);
-        break;
-      case .neq:
-        final b = stack.pop();
-        final a = stack.pop();
-        stack.push(a != b ? 1 : 0);
-        break;
-      case .gt:
-        final b = stack.pop();
-        final a = stack.pop();
-        stack.push(a > b ? 1 : 0);
-        break;
-      case .ge:
-        final b = stack.pop();
-        final a = stack.pop();
-        stack.push(a >= b ? 1 : 0);
-        break;
-      case .lt:
-        final b = stack.pop();
-        final a = stack.pop();
-        stack.push(a < b ? 1 : 0);
-        break;
-      case .le:
-        final b = stack.pop();
-        final a = stack.pop();
-        stack.push(a <= b ? 1 : 0);
-        break;
-      case .if_:
-        final x = stack.pop();
-        if (x == 0) {
-          ip = op.operand;
-        }
-        break;
-      case .end:
-        ip = op.operand;
-        break;
-      case .else_:
-        ip = op.operand;
-        break;
-      case .dump:
-        final x = stack.pop();
-        print(x);
-        break;
-      case .dup:
-        final x = stack.pop();
-        stack.push(x);
-        stack.push(x);
-        break;
-      case .while_:
-        break;
-      case .do_:
-        final x = stack.pop();
-        if (x == 0) {
-          ip = op.operand;
-        } 
-        break;
-      case .mem:
-        stack.push(0);
-        break;
-      case .store:
-        final byte = stack.pop();
-        final offset = stack.pop();
-        mem[offset] = byte;
-        break;
-      case .load:
-        final offset = stack.pop();
-        final byte = mem[offset];
-        stack.push(byte);
-        break;
-    }
-  }
+  Interpreter(memoryCapacity: memoryCapacity).interpret(program);
 }
 
 class CodeGen {
@@ -576,6 +499,18 @@ Future<void> compileProgram(List<Op> program, Uri outputPath, {int memoryCapacit
         gen.writeln("xor rbx, rbx");
         gen.writeln("mov bl, [rax]");
         gen.push("rbx");
+        break;
+      case .syscall:
+        final registers = ["rdi", "rsi", "rdx", "r10", "r8", "r9"];
+        gen.comment("syscall");
+        gen.pop("rax"); // syscall number
+        final int amount = op.operand;
+        for (int i = 0; i < amount && i < registers.length; i++) {
+          gen.pop(registers[i]);
+        }
+        gen.writeln("syscall");
+        gen.push("rax");
+        gen.comment("done syscall");
         break;
     }
   }

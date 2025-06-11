@@ -8,6 +8,7 @@ enum OpCode {
   plus,
   minus,
   equal,
+  neq,
   gt,
   ge,
   lt,
@@ -132,6 +133,8 @@ extension on List<Token> {
           return op(.minus);
         case '=':
           return op(.equal);
+        case "!=":
+          return op(.neq);
         case '>':
           return op(.gt);
         case ">=":
@@ -170,6 +173,7 @@ extension on List<Op> {
         case .plus:
         case .minus:
         case .equal:
+        case .neq:
         case .gt:
         case .ge:
         case .lt:
@@ -209,7 +213,6 @@ extension on List<Op> {
           this[ip] = this[ip].replaceOperand(addr);
           stack.push(ip);
           break;
-          
       }
     }
 
@@ -254,6 +257,11 @@ void interpretProgram(List<Op> program) {
         final b = stack.pop();
         final a = stack.pop();
         stack.push(a == b ? 1 : 0);
+        break;
+      case .neq:
+        final b = stack.pop();
+        final a = stack.pop();
+        stack.push(a != b ? 1 : 0);
         break;
       case .gt:
         final b = stack.pop();
@@ -433,6 +441,16 @@ Future<void> compileProgram(List<Op> program, Uri outputPath) async {
         gen.writeln("cmp rax, rdi");
         gen.writeln("mov rax, 0");
         gen.writeln("cmove rax, rcx");
+        gen.push("rax");
+        break;
+      case .neq:
+        gen.comment("equal");
+        gen.writeln("mov rcx, 1");
+        gen.pop("rdi");
+        gen.pop("rax");
+        gen.writeln("cmp rax, rdi");
+        gen.writeln("mov rax, 0");
+        gen.writeln("cmovne rax, rcx");
         gen.push("rax");
         break;
       case .gt:

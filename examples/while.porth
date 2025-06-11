@@ -13,3 +13,9 @@ end
 else 
     1 if 420 . end
 end
+
+// test not equal
+5 while dup 0 != do
+    dup .
+    1 -
+end

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:quiver/iterables.dart';
 
 import 'package:dorth/stack.dart';
@@ -250,6 +251,7 @@ extension on String {
 
 void interpretProgram(List<Op> program, {int memoryCapacity = 64000}) {
   final stack = Stack<int>();
+  final mem = Uint8List(memoryCapacity);
 
   for (int ip = 0; ip < program.length; ip++) {
     Op op = program[ip];
@@ -327,14 +329,18 @@ void interpretProgram(List<Op> program, {int memoryCapacity = 64000}) {
         } 
         break;
       case .mem:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        stack.push(0);
+        break;
       case .store:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        final byte = stack.pop();
+        final offset = stack.pop();
+        mem[offset] = byte;
+        break;
       case .load:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        final offset = stack.pop();
+        final byte = mem[offset];
+        stack.push(byte);
+        break;
     }
   }
 }

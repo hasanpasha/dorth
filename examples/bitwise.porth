@@ -1,0 +1,4 @@
+1 3 shl dump
+32 3 shr dump
+1 2 bor dump
+1 2 band dump

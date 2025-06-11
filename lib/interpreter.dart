@@ -119,6 +119,30 @@ class Interpreter {
         case .drop:
           stack.pop();
           break;
+        case .shr:
+          final b = stack.pop();
+          final a = stack.pop();
+          final x = a >> b;
+          stack.push(x);
+          break;
+        case .shl:
+          final b = stack.pop();
+          final a = stack.pop();
+          final x = a << b;
+          stack.push(x);
+          break;
+        case .bitOr:
+          final b = stack.pop();
+          final a = stack.pop();
+          final x = a | b;
+          stack.push(x);
+          break;
+        case .bitAnd:
+          final b = stack.pop();
+          final a = stack.pop();
+          final x = a & b;
+          stack.push(x);
+          break;
       }
     }
   }

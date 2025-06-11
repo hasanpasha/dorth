@@ -27,6 +27,10 @@ enum OpCode {
   load,
   syscall,
   drop,
+  shr,
+  shl,
+  bitOr,
+  bitAnd,
 }
 
 class Op {
@@ -184,6 +188,14 @@ extension on List<Token> {
           return op(.syscall, 6);
         case "drop":
           return op(.drop);
+        case "shr":
+          return op(.shr);
+        case "shl":
+          return op(.shl);
+        case "bor":
+          return op(.bitOr);
+        case "band":
+          return op(.bitAnd);
         default:
           if (int.tryParse(token.lexeme) case var num?) {
             return op(.push, num);
@@ -250,6 +262,10 @@ extension on List<Op> {
         case .syscall:
         case .dup2:
         case .drop:
+        case .shr:
+        case .shl:
+        case .bitOr:
+        case .bitAnd:
           break;
       }
     }
@@ -529,9 +545,37 @@ Future<void> compileProgram(List<Op> program, Uri outputPath, {int memoryCapacit
         gen.push("rbx");
         gen.push("rax");
         break;
-      case OpCode.drop:
+      case .drop:
         gen.comment("drop");
         gen.pop("rax");
+        break;
+      case .shr:
+        gen.comment(">>");
+        gen.pop("rcx");
+        gen.pop("rax");
+        gen.writeln("shr rax, cl");
+        gen.push("rax");
+        break;
+      case .shl:
+        gen.comment("<<");
+        gen.pop("rcx");
+        gen.pop("rax");
+        gen.writeln("shl rax, cl");
+        gen.push("rax");
+        break;
+      case .bitOr:
+        gen.comment("|");
+        gen.pop("rcx");
+        gen.pop("rax");
+        gen.writeln("or rax, rcx");
+        gen.push("rax");
+        break;
+      case .bitAnd:
+        gen.comment("&");
+        gen.pop("rcx");
+        gen.pop("rax");
+        gen.writeln("and rax, rcx");
+        gen.push("rax");
         break;
     }
   }

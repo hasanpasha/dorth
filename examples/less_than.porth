@@ -1,5 +1,5 @@
 1 2 < if
-    69 .
+    69 dump
 else
-    420 .
+    420 dump
 end

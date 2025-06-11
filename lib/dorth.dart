@@ -20,6 +20,7 @@ enum OpCode {
   else_,
   while_,
   do_,
+  mem,
 }
 
 class Op {
@@ -123,7 +124,7 @@ extension on List<Token> {
       Op op(OpCode code, [dynamic operand]) => Op(code, token, operand);
       
       switch (token.lexeme) {
-        case '.':
+        case "dump":
           return op(.dump);
         case "dup":
           return op(.dup);
@@ -153,6 +154,8 @@ extension on List<Token> {
           return op(.while_);
         case "do":
           return op(.do_);
+        case "mem":
+          return op(.mem);
         default:
           if (int.tryParse(token.lexeme) case var num?) {
             return op(.push, num);
@@ -213,6 +216,8 @@ extension on List<Op> {
           this[ip] = this[ip].replaceOperand(addr);
           stack.push(ip);
           break;
+        case .mem:
+          break;
       }
     }
 
@@ -234,7 +239,7 @@ extension on String {
   bool get isWhiteSpace => ['\n', '\t', '\r', ' ', '\f'].contains(this);
 }
 
-void interpretProgram(List<Op> program) {
+void interpretProgram(List<Op> program, {int memoryCapacity = 64000}) {
   final stack = Stack<int>();
 
   for (int ip = 0; ip < program.length; ip++) {
@@ -310,8 +315,11 @@ void interpretProgram(List<Op> program) {
         final x = stack.pop();
         if (x == 0) {
           ip = op.operand;
-        }
-        
+        } 
+        break;
+      case .mem:
+
+        break;
     }
   }
 }
@@ -394,13 +402,14 @@ class CodeGen {
   }
 }
 
-Future<void> compileProgram(List<Op> program, Uri outputPath) async {
+Future<void> compileProgram(List<Op> program, Uri outputPath, {int memoryCapacity = 64_000}) async {
   final gen = CodeGen(outputPath);
   
   gen.writeln(".intel_syntax noprefix");
 
   gen.writeAll([
-    ".section .data",
+    ".section .bss",
+    ".comm mem, $memoryCapacity",
   ]);
 
   gen.writeln(".section .text");
@@ -528,6 +537,11 @@ Future<void> compileProgram(List<Op> program, Uri outputPath) async {
         gen.pop("rax");
         gen.writeln("test rax, rax");
         gen.writeln("jz .label_${op.operand}");
+        break;
+      case OpCode.mem:
+        gen.comment("mem");
+        gen.writeln("lea rax, mem[rip]");
+        gen.push("rax");
         break;
     }
   }

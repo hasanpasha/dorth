@@ -1,8 +1,8 @@
 1 2 + 3 = if
-    1 if 1 . 69 . else 0 end
+    1 if 1 dump 69 dump else 0 end
 else
-    420 .
+    420 dump
 end
 
-34 35 + 70 = if 420 . end
-34 35 + 69 = if 420 . end
+34 35 + 70 = if 420 dump end
+34 35 + 69 = if 420 dump end

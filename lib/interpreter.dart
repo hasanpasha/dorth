@@ -108,6 +108,14 @@ class Interpreter {
           final int result = SyscallEmulation.emulate(op, this);
           stack.push(result);
           break;
+        case .dup2:
+          final a = stack.pop();
+          final b = stack.pop();
+          stack.push(b);
+          stack.push(a);
+          stack.push(b);
+          stack.push(a);
+          break;
       }
     }
   }

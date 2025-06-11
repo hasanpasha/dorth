@@ -16,6 +16,7 @@ enum OpCode {
   le,
   dump,
   dup,
+  dup2,
   if_,
   end,
   else_,
@@ -132,6 +133,8 @@ extension on List<Token> {
           return op(.dump);
         case "dup":
           return op(.dup);
+        case "2dup":
+          return op(.dup2);
         case '+':
           return op(.plus);
         case '-':
@@ -242,6 +245,7 @@ extension on List<Op> {
         case .store:
         case .load:
         case .syscall:
+        case .dup2:
           break;
       }
     }
@@ -511,6 +515,15 @@ Future<void> compileProgram(List<Op> program, Uri outputPath, {int memoryCapacit
         gen.writeln("syscall");
         gen.push("rax");
         gen.comment("done syscall");
+        break;
+      case .dup2:
+        gen.comment("2dup");
+        gen.pop("rax");
+        gen.pop("rbx");
+        gen.push("rbx");
+        gen.push("rax");
+        gen.push("rbx");
+        gen.push("rax");
         break;
     }
   }

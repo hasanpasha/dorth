@@ -21,6 +21,8 @@ enum OpCode {
   while_,
   do_,
   mem,
+  store,
+  load,
 }
 
 class Op {
@@ -156,6 +158,10 @@ extension on List<Token> {
           return op(.do_);
         case "mem":
           return op(.mem);
+        case '.':
+          return op(.store);
+        case ',':
+          return op(.load);
         default:
           if (int.tryParse(token.lexeme) case var num?) {
             return op(.push, num);
@@ -217,7 +223,10 @@ extension on List<Op> {
           stack.push(ip);
           break;
         case .mem:
+        case .store:
+        case .load:
           break;
+          
       }
     }
 
@@ -318,8 +327,14 @@ void interpretProgram(List<Op> program, {int memoryCapacity = 64000}) {
         } 
         break;
       case .mem:
-
-        break;
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case .store:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case .load:
+        // TODO: Handle this case.
+        throw UnimplementedError();
     }
   }
 }
@@ -492,7 +507,7 @@ Future<void> compileProgram(List<Op> program, Uri outputPath, {int memoryCapacit
         gen.writeln("cmovl rax, rcx");
         gen.push("rax");
         break;
-      case OpCode.le:
+      case .le:
         gen.comment("ge");
         gen.writeln("mov rcx, 1");
         gen.pop("rdi");
@@ -528,20 +543,33 @@ Future<void> compileProgram(List<Op> program, Uri outputPath, {int memoryCapacit
         gen.writeln("jmp .label_${op.operand}");
         gen.writeln(".label_$ip:");
         break;
-      case OpCode.while_:
+      case .while_:
         gen.comment("while");
         gen.writeln(".label_$ip:");
         break;
-      case OpCode.do_:
+      case .do_:
         gen.comment("do");
         gen.pop("rax");
         gen.writeln("test rax, rax");
         gen.writeln("jz .label_${op.operand}");
         break;
-      case OpCode.mem:
+      case .mem:
         gen.comment("mem");
         gen.writeln("lea rax, mem[rip]");
         gen.push("rax");
+        break;
+      case .store:
+        gen.comment("store");
+        gen.pop("rbx");
+        gen.pop("rax");
+        gen.writeln("movb [rax], bl");
+        break;
+      case .load:
+        gen.comment("load");
+        gen.pop("rax");
+        gen.writeln("xor rbx, rbx");
+        gen.writeln("mov bl, [rax]");
+        gen.push("rbx");
         break;
     }
   }

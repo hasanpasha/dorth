@@ -116,6 +116,9 @@ class Interpreter {
           stack.push(b);
           stack.push(a);
           break;
+        case .drop:
+          stack.pop();
+          break;
       }
     }
   }

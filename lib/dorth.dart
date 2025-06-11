@@ -26,6 +26,7 @@ enum OpCode {
   store,
   load,
   syscall,
+  drop,
 }
 
 class Op {
@@ -181,6 +182,8 @@ extension on List<Token> {
           return op(.syscall, 5);
         case "syscall6":
           return op(.syscall, 6);
+        case "drop":
+          return op(.drop);
         default:
           if (int.tryParse(token.lexeme) case var num?) {
             return op(.push, num);
@@ -246,6 +249,7 @@ extension on List<Op> {
         case .load:
         case .syscall:
         case .dup2:
+        case .drop:
           break;
       }
     }
@@ -524,6 +528,10 @@ Future<void> compileProgram(List<Op> program, Uri outputPath, {int memoryCapacit
         gen.push("rax");
         gen.push("rbx");
         gen.push("rax");
+        break;
+      case OpCode.drop:
+        gen.comment("drop");
+        gen.pop("rax");
         break;
     }
   }

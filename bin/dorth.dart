@@ -99,7 +99,7 @@ Future<bool> command(List<String> args, {bool verbose = false}) async {
   final result = await Process.run(args.first, args.sublist(1));
   
   if (verbose) {
-    stdout.write(result.stdout.toString().trim());
+    stdout.write(result.stdout.toString().trimLeft());
   }
   
   if (result.exitCode != 0) {

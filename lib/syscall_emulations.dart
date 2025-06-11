@@ -17,8 +17,6 @@ class SyscallException implements Exception {
 
 class SyscallEmulation {
   final Op op;
-  // final Stack<int> stack;
-  // final Uint8List memory;
   final Interpreter interpreter;
   final int syscallNumber;
 
@@ -41,7 +39,7 @@ class SyscallEmulation {
     final addr = stack.pop();
     final count = stack.pop();
 
-    final string = String.fromCharCodes(memory.sublist(addr, count));
+    final string = String.fromCharCodes(memory.sublist(addr, addr+count));
     switch (fd) {
       case 0:
         throw UnsupportedError("writing to `stdin` is not supported in emulation.");

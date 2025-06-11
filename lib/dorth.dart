@@ -98,6 +98,10 @@ List<Token> lex(String source, [String? filepath]) {
           start = i+1;
           buffer = "";
         }
+
+        if (i+1 < line.length && line.substring(i, i+2) == "//") {
+          break;
+        }
       }
 
       return words;

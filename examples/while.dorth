@@ -1,8 +1,11 @@
+// iterate from 10 to zero
 10
 while dup 0 > do
+    // duplicate stack top and print it
     dup .
     1 -
 end
+// this should always print
 6969 .
 
 1 2 + 4 = if

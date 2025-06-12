@@ -143,6 +143,12 @@ class Interpreter {
           final x = a & b;
           stack.push(x);
           break;
+        case .swap:
+          final a = stack.pop();
+          final b = stack.pop();
+          stack.push(a);
+          stack.push(b);
+          break;
       }
     }
   }

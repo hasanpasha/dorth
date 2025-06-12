@@ -31,6 +31,7 @@ enum OpCode {
   shl,
   bitOr,
   bitAnd,
+  swap,
 }
 
 class Op {
@@ -122,6 +123,8 @@ List<Token> lex(String source, [String? filepath]) {
     .toList();
 }
 
+
+// TODO: move the parser to a separate file
 List<Op> parseProgram(String source, [String? filepath]) =>
   lex(source, filepath)
   .parse()
@@ -196,6 +199,8 @@ extension on List<Token> {
           return op(.bitOr);
         case "band":
           return op(.bitAnd);
+        case "swap":
+          return op(.swap);
         default:
           if (int.tryParse(token.lexeme) case var num?) {
             return op(.push, num);
@@ -266,6 +271,7 @@ extension on List<Op> {
         case .shl:
         case .bitOr:
         case .bitAnd:
+        case .swap:
           break;
       }
     }
@@ -576,6 +582,13 @@ Future<void> compileProgram(List<Op> program, Uri outputPath, {int memoryCapacit
         gen.pop("rax");
         gen.writeln("and rax, rcx");
         gen.push("rax");
+        break;
+      case .swap:
+        gen.comment("swap");
+        gen.pop("rax");
+        gen.pop("rbx");
+        gen.push("rax");
+        gen.push("rbx");
         break;
     }
   }

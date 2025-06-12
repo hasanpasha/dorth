@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'dart:io';
 
-import 'package:dorth/dorth.dart';
+import 'package:dorth/parser.dart';
 import 'package:dorth/stack.dart';
 import 'package:dorth/interpreter.dart';
 

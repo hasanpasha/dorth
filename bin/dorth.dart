@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:dorth/dorth.dart';
 import 'package:dorth/interpreter.dart';
+import 'package:dorth/parser.dart';
 
 void main(List<String> arguments) async {  
   final args = Queue<String>.from(arguments);
@@ -17,15 +18,15 @@ void main(List<String> arguments) async {
     exit(1);
   }
   final inputFilePath = args.removeFirst();
+  final inputFileUri = Uri.file(inputFilePath);
   
   switch (cmd) {
     case "sim":
-      final program = await parseFile(inputFilePath);
+      final program = await parseFile(inputFileUri);
       interpretProgram(program);
       break;
     case "com":
-      final inputFileUri = Uri.file(inputFilePath);
-      final program = await parseFile(inputFilePath);
+      final program = await parseFile(inputFileUri);
       final asmUri = inputFileUri.replaceExtension('.S');
       await compileProgram(program, asmUri);
       final objUri = asmUri.replaceExtension('.o');

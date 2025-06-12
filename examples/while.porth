@@ -2,20 +2,20 @@
 10
 while dup 0 > do
     // duplicate stack top and print it
-    dup .
+    dup dump
     1 -
 end
 // this should always print
-6969 .
+6969 dump
 
 1 2 + 4 = if
-    69 .
+    69 dump
 else 
-    1 if 420 . end
+    1 if 420 dump end
 end
 
 // test not equal
 5 while dup 0 != do
-    dup .
+    dup dump
     1 -
 end

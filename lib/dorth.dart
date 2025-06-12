@@ -32,6 +32,7 @@ enum OpCode {
   bitOr,
   bitAnd,
   swap,
+  over,
 }
 
 class Op {
@@ -201,6 +202,8 @@ extension on List<Token> {
           return op(.bitAnd);
         case "swap":
           return op(.swap);
+        case "over":
+          return op(.over);
         default:
           if (int.tryParse(token.lexeme) case var num?) {
             return op(.push, num);
@@ -272,6 +275,7 @@ extension on List<Op> {
         case .bitOr:
         case .bitAnd:
         case .swap:
+        case .over:
           break;
       }
     }
@@ -589,6 +593,14 @@ Future<void> compileProgram(List<Op> program, Uri outputPath, {int memoryCapacit
         gen.pop("rbx");
         gen.push("rax");
         gen.push("rbx");
+        break;
+      case .over:
+        gen.comment("over");
+        gen.pop("rax"); // x2
+        gen.pop("rbx"); // x1
+        gen.push("rbx");// x1
+        gen.push("rax"); // x2
+        gen.push("rbx"); // x3
         break;
     }
   }

@@ -149,6 +149,13 @@ class Interpreter {
           stack.push(a);
           stack.push(b);
           break;
+        case .over:
+          final a = stack.pop();
+          final b = stack.pop();
+          stack.push(b);
+          stack.push(a);
+          stack.push(b);
+          break;
       }
     }
   }

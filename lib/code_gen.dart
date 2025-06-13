@@ -7,8 +7,9 @@ enum Target {
 }
 
 abstract class CodeGen {
-  String generate();
-
+  @override
+  String toString() => throw UnimplementedError();
+  
   void push(Object operand);
   
   void pop(String reg);
@@ -30,7 +31,7 @@ abstract class CodeGen {
         break;
     }
 
-    final generatedCode = generator.generate();
+    final generatedCode = generator.toString();
     return generatedCode;
   }
 }

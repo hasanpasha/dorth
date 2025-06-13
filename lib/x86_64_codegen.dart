@@ -9,22 +9,28 @@ enum AssemblySection {
 }
 
 class X8664Codegen extends CodeGen {
-  final StringBuffer output = StringBuffer();
-  final List<Op> ops;
-  final int bssCapacity;
+  final StringBuffer _output = StringBuffer();
+  final List<Op> _ops;
+  final int _bssCapacity;
 
-  final Map<AssemblySection, StringBuffer> sections = {
+  final Map<AssemblySection, StringBuffer> _sections = {
     .top: StringBuffer(),
     .code: StringBuffer(), 
     .data: StringBuffer(), 
     .bss: StringBuffer(),
   };
 
-  X8664Codegen({required this.ops, int? bssCapacity}) 
-    : bssCapacity = bssCapacity ?? 65000;
+  X8664Codegen({required List<Op> ops, int? bssCapacity}) 
+    : _ops = ops, _bssCapacity = bssCapacity ?? 65000
+    {
+      _generate();
+    }
+
+  @override
+  String toString() => _output.toString();
 
   void writeln(String str, [AssemblySection section = .code]) {
-    sections[section]!.writeln(str);
+    _sections[section]!.writeln(str);
   }
 
   void writeAll(List<Object> objs, [AssemblySection section = .code]) {
@@ -67,16 +73,15 @@ class X8664Codegen extends CodeGen {
     ]);
   }
 
-  String finish() {
-    output.writeln(".intel_syntax noprefix");
-    output.writeln(sections[AssemblySection.top].toString());
-    output.writeln(".section .bss");
-    output.writeln(sections[AssemblySection.bss].toString());
-    output.writeln(".section .data");
-    output.writeln(sections[AssemblySection.data].toString());
-    output.writeln(".section .text");
-    output.writeln(sections[AssemblySection.code].toString());
-    return output.toString();
+  void _finish() {
+    _output.writeln(".intel_syntax noprefix");
+    _output.writeln(_sections[AssemblySection.top].toString());
+    _output.writeln(".section .bss");
+    _output.writeln(_sections[AssemblySection.bss].toString());
+    _output.writeln(".section .data");
+    _output.writeln(_sections[AssemblySection.data].toString());
+    _output.writeln(".section .text");
+    _output.writeln(_sections[AssemblySection.code].toString());
   }
 
   @override
@@ -94,19 +99,18 @@ class X8664Codegen extends CodeGen {
   @override
   void pop(String reg) => writeln("pop $reg");
   
-  @override
-  String generate() {
+  void _generate() {
     defineDump();
     
-    writeln(".comm mem, $bssCapacity", .bss);
+    writeln(".comm mem, $_bssCapacity", .bss);
 
     writeAll([
       ".global _start",
       "_start:",
     ]);
 
-    for (int ip = 0; ip < ops.length; ip++) {
-      final op = ops[ip];
+    for (int ip = 0; ip < _ops.length; ip++) {
+      final op = _ops[ip];
       switch (op.code) {
         case .push:
           comment("push ${op.operand}");
@@ -317,6 +321,6 @@ class X8664Codegen extends CodeGen {
       "syscall",
     ]);
 
-    return finish();
+    _finish();
   }
 }

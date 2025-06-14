@@ -24,4 +24,7 @@ class Stack<T> {
   }
 
   T peak() => _stack.last;
+
+  @override
+  String toString() => _stack.toString();
 }

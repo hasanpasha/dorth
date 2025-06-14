@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dorth/code_gen.dart';
 import 'package:dorth/parser.dart';
 
@@ -313,8 +315,18 @@ class X8664Codegen extends CodeGen {
           push("rbx"); // x3
           break;
         case OpCode.pushStr:
-          // TODO: Handle this case.
-          throw UnimplementedError();
+          final str = op.operand as String;
+          final strEncoded = utf8.encode(str);
+          comment("push str");
+          writeln("mov rax, ${utf8.encode(str).length}");
+          push("rax");
+          writeln("lea rax, str_$ip[rip]");
+          push("rax");
+
+          // in data
+          final asBytesStr = strEncoded.map((e) => e.toString()).join(", ");
+          writeln("str_$ip: .byte $asBytesStr, 0", .data); // null-terminate
+          break;
       }
     }
 

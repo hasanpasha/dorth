@@ -4,7 +4,7 @@ import 'package:dorth/extensions.dart';
 import 'package:dorth/stack.dart';
 
 enum OpCode {
-  push,
+  pushNum,
   plus,
   minus,
   equal,
@@ -275,7 +275,7 @@ class Parser {
               throw SyntaxErrorException(token.location, "unknown word '${token.lexeme}'.");
           }
         case TokenKind.number:
-          return op(.push, int.parse(token.lexeme));
+          return op(.pushNum, int.parse(token.lexeme));
         case TokenKind.string:
           throw UnimplementedError("string literals `${token.lexeme}` are not implemented yet.");
       }
@@ -332,7 +332,7 @@ class Parser {
         case .bitAnd:
         case .swap:
         case .over:
-        case .push:
+        case .pushNum:
         case .plus:
         case .minus:
         case .equal:

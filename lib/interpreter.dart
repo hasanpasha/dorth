@@ -19,7 +19,7 @@ class Interpreter {
     for (int ip = 0; ip < program.length; ip++) {
       Op op = program[ip];
       switch (op.code) {
-        case .push:
+        case .pushNum:
           stack.push(op.operand);
           break;
         case .plus:

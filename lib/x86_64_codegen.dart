@@ -112,7 +112,7 @@ class X8664Codegen extends CodeGen {
     for (int ip = 0; ip < _ops.length; ip++) {
       final op = _ops[ip];
       switch (op.code) {
-        case .push:
+        case .pushNum:
           comment("push ${op.operand}");
           push(op.operand);
           break;

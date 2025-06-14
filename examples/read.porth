@@ -1,0 +1,9 @@
+"what is your name? " 1 1 syscall3 drop
+
+10 mem 0 + 0 0 syscall3
+
+"hello, " 1 1 syscall3 drop 
+
+1 - mem 1 1 syscall3 drop
+
+"!\n" 1 1 syscall3 drop 

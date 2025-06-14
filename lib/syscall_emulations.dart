@@ -29,10 +29,41 @@ class SyscallEmulation {
   Location get location => op.location;
 
   Map<int, int Function()> get syscallsServer => {
+    0: _read,
     1: _write, 
     60: _exit, 
   };
   
+  int _read() {
+    if (syscallArgsNumber != 3) throw SyscallException(location, "`write` syscall requires 3 arguments");
+
+    final fd = stack.pop();
+    final addr = stack.pop();
+    final count = stack.pop();
+
+    int bytesRead = 0;
+    switch (fd) {
+      case 0:
+        final str = stdin.readLineSync(encoding: Encoding.getByName('utf-8')!, retainNewlines: false);
+        if (str != null) {
+          final bytes = utf8.encode(str);
+          for (var i = 0; i < bytes.length && i < count; i++) {
+            memory[addr+i] = bytes[i];
+            bytesRead++;
+          }
+        } else {
+          bytesRead = -1;
+        }
+      case 1:
+        throw UnimplementedError("reading from `stdout` is not implemented yet in the interpreter.");
+      case 2:
+        throw UnimplementedError("reading from `stderr` is not implemented yet in the interpreter..");
+      default:
+        throw UnimplementedError("reading from arbitrary file descriptor is not implemented yet in the interpreter.");
+    }
+
+    return bytesRead;
+  }
 
   int _write() {
     if (syscallArgsNumber != 3) throw SyscallException(location, "`write` syscall requires 3 arguments");

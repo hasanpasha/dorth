@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
 
@@ -39,7 +40,9 @@ class SyscallEmulation {
     final addr = stack.pop();
     final count = stack.pop();
 
-    final string = String.fromCharCodes(memory.sublist(addr, addr+count));
+    final string = utf8.decode(memory.sublist(addr, addr+count));
+    // print("write($count, $addr, $fd /* $string */);");
+    
     switch (fd) {
       case 0:
         throw UnsupportedError("writing to `stdin` is not supported in emulation.");

@@ -312,6 +312,9 @@ class X8664Codegen extends CodeGen {
           push("rax"); // x2
           push("rbx"); // x3
           break;
+        case OpCode.pushStr:
+          // TODO: Handle this case.
+          throw UnimplementedError();
       }
     }
 

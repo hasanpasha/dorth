@@ -1,10 +1,13 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:dorth/extensions.dart';
 
 import 'package:dorth/stack.dart';
+import 'package:string_unescape/string_unescape.dart';
 
 enum OpCode {
   pushNum,
+  pushStr,
   plus,
   minus,
   equal,
@@ -277,11 +280,15 @@ class Parser {
         case TokenKind.number:
           return op(.pushNum, int.parse(token.lexeme));
         case TokenKind.string:
-          throw UnimplementedError("string literals `${token.lexeme}` are not implemented yet.");
+          final str = unescape(token.lexeme.substring(1, token.lexeme.length-1));
+          // final str = _parseString(token.lexeme);
+          return op(.pushStr, str);
       }
 
     }).toList();
   }
+
+  // Uint8List _parseString(String lexeme) {}
 
   List<Op> _crossreferenceBlocks(List<Op> ops) {
     final stack = Stack<int>();
@@ -343,6 +350,7 @@ class Parser {
         case .le:
         case .dump:
         case .dup:
+        case .pushStr:
           break;
       }
     }

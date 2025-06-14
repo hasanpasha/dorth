@@ -72,15 +72,16 @@ class SyscallEmulation {
     final count = stack.pop();
 
     final string = utf8.decode(memory.sublist(addr, addr+count));
-    // print("write($count, $addr, $fd /* $string */);");
     
     switch (fd) {
       case 0:
-        throw UnsupportedError("writing to `stdin` is not supported in emulation.");
+        throw UnimplementedError("writing to `stdin` is not implemented yet in the interpreter.");
       case 1:
         stdout.write(string);
       case 2:
         stderr.write(string);
+      default:
+        throw UnimplementedError("writing to arbitrary file descriptor is not implemented yet in the interpreter.")
     }
     return count;
   }

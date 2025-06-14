@@ -41,7 +41,7 @@ class SyscallEmulation {
     final addr = stack.pop();
     final count = stack.pop();
 
-    int bytesRead = 0;
+    int bytesRead = 1;
     switch (fd) {
       case 0:
         final str = stdin.readLineSync(encoding: Encoding.getByName('utf-8')!, retainNewlines: false);
@@ -81,7 +81,7 @@ class SyscallEmulation {
       case 2:
         stderr.write(string);
       default:
-        throw UnimplementedError("writing to arbitrary file descriptor is not implemented yet in the interpreter.")
+        throw UnimplementedError("writing to arbitrary file descriptor is not implemented yet in the interpreter.");
     }
     return count;
   }

@@ -55,24 +55,122 @@ class Op {
 }
 
 class Location {
-  final int line;
-  final int column;
+  int line;
+  int column;
   final String? filename;
 
   Location(this.line, this.column, [this.filename]);
+
+  Location copyWith({int? line, int? column, String? filename}) {
+    return Location(line ?? this.line, column ?? this.column, filename ?? this.filename);
+  }
 
   @override
   String toString() =>  "${filename ?? ""}:$line:$column";
 }
 
+enum TokenKind {
+  word,
+  number,
+  string,
+}
+
+class Lexer {
+  final String _source;
+  int _start = 0;
+  int _current = 0;
+  final Location _location;
+  final List<Token> tokens = [];
+
+  Lexer(this._source, [String? filename]) : 
+    _location = Location(1, 1, filename)
+  {
+    while (!_isAtEnd) {
+      _lexNext();
+    }
+  }
+  
+  bool get _isAtEnd => _current == _source.length;
+
+  void _lexNext() {
+    _skipWhitespaces();
+    _start = _current;
+
+    if (_isAtEnd) return;
+
+    final String cur = _advance();
+
+    if (cur.isDigit && (_peek().isDigit || _peek().isWhiteSpace)) {
+      while (!_isAtEnd && _peek().isDigit) {
+        _advance();
+      } 
+      _pushToken(.number);
+    } else if (cur == '"') {
+      while (!_isAtEnd && !_match('"')) {
+        _advance();
+      }
+      _pushToken(.string);
+    } else if (cur == '/' && _peek() == '/') {
+      while (!_isAtEnd && !_match('\n')) {
+        _advance();
+      }
+    } else if (cur.isWhiteSpace) {
+      _advance();
+    } else {
+      while (!_isAtEnd && !_peek().isWhiteSpace) {
+        _advance();
+      }
+      _pushToken(.word);
+    }
+  }
+
+  void _pushToken(TokenKind kind) {
+    final newLocation = _location.copyWith(column: _location.column - (_current - _start));
+    tokens.add(Token(kind, _source.substring(_start, _current), newLocation));
+  }
+  
+  String _advance() {
+    if (_isAtEnd) return "";
+    final cur = _source[_current];
+
+    if (cur == '\n') {
+      _location.line++;
+      _location.column = 1;
+    } else {
+      _location.column++;
+    }
+    
+    _current++;
+    return cur;
+  }
+  
+  String _peek() => _source[_current];
+  
+  void _skipWhitespaces() {
+    while (!_isAtEnd && _peek().isWhiteSpace) {
+      _advance();
+    }
+  }
+  
+  bool _match(String s) {
+    if (_isAtEnd) return false;
+    if (_peek() == s) {
+      _advance();
+      return true;
+    }
+    return false;
+  }
+}
+
 class Token {
+  final TokenKind kind;
   final String lexeme;
   final Location location;
 
-  const Token(this.lexeme, this.location);
+  const Token(this.kind, this.lexeme, this.location);
   
   @override
-  String toString() => "$location:$lexeme";
+  String toString() => "$kind[$location:$lexeme]";
 }
 
 class SyntaxErrorException implements Exception {
@@ -97,121 +195,88 @@ class Parser {
     return parser._parse();
   }
 
-  List<Token> _lex(String source, [String? filepath]) {
-  return enumerate(source
-    .split('\n'))
-    .map((indexed) {
-      final lineNumber = indexed.index;
-      final line = indexed.value;
-
-      List<Token> words = [];
-
-      String buffer = "";
-      int start = 0;
-      for (int i = 0; i < line.length; i++) {
-        String cur = line.substring(i, i+1);
-        
-        if (!cur.isWhiteSpace) {
-          buffer += cur;
-        } 
-        
-        if (cur.isWhiteSpace || i == line.length-1) {
-          if (buffer.isNotEmpty) {
-            words.add(Token(buffer, Location(lineNumber+1, start+1, filepath)));
-          }
-
-          start = i+1;
-          buffer = "";
-        }
-
-        if (i+1 < line.length && line.substring(i, i+2) == "//") {
-          break;
-        }
-      }
-
-      return words;
-    })
-    .expand((e) => e)
-    .toList();
-  }
-
   List<Op> _tokensToOps(List<Token> tokens) {
     return tokens.map((token) {
       Op op(OpCode code, [dynamic operand]) => Op(code, token, operand);
       
-      switch (token.lexeme) {
-        case "dump":
-          return op(.dump);
-        case "dup":
-          return op(.dup);
-        case "2dup":
-          return op(.dup2);
-        case '+':
-          return op(.plus);
-        case '-':
-          return op(.minus);
-        case '=':
-          return op(.equal);
-        case "!=":
-          return op(.neq);
-        case '>':
-          return op(.gt);
-        case ">=":
-          return op(.ge);
-        case '<':
-          return op(.lt);
-        case "<=":
-          return op(.le);
-        case "if":
-          return op(.if_);
-        case "end":
-          return op(.end);
-        case "else":
-          return op(.else_);
-        case "while":
-          return op(.while_);
-        case "do":
-          return op(.do_);
-        case "mem":
-          return op(.mem);
-        case '.':
-          return op(.store);
-        case ',':
-          return op(.load);
-        case "syscall0":
-          return op(.syscall, 0);
-        case "syscall1":
-          return op(.syscall, 1);
-        case "syscall2":
-          return op(.syscall, 2);
-        case "syscall3":
-          return op(.syscall, 3);
-        case "syscall4":
-          return op(.syscall, 4);
-        case "syscall5":
-          return op(.syscall, 5);
-        case "syscall6":
-          return op(.syscall, 6);
-        case "drop":
-          return op(.drop);
-        case "shr":
-          return op(.shr);
-        case "shl":
-          return op(.shl);
-        case "bor":
-          return op(.bitOr);
-        case "band":
-          return op(.bitAnd);
-        case "swap":
-          return op(.swap);
-        case "over":
-          return op(.over);
-        default:
-          if (int.tryParse(token.lexeme) case var num?) {
-            return op(.push, num);
+      switch (token.kind) {
+        case TokenKind.word:
+          switch (token.lexeme) {
+            case "dump":
+              return op(.dump);
+            case "dup":
+              return op(.dup);
+            case "2dup":
+              return op(.dup2);
+            case '+':
+              return op(.plus);
+            case '-':
+              return op(.minus);
+            case '=':
+              return op(.equal);
+            case "!=":
+              return op(.neq);
+            case '>':
+              return op(.gt);
+            case ">=":
+              return op(.ge);
+            case '<':
+              return op(.lt);
+            case "<=":
+              return op(.le);
+            case "if":
+              return op(.if_);
+            case "end":
+              return op(.end);
+            case "else":
+              return op(.else_);
+            case "while":
+              return op(.while_);
+            case "do":
+              return op(.do_);
+            case "mem":
+              return op(.mem);
+            case '.':
+              return op(.store);
+            case ',':
+              return op(.load);
+            case "syscall0":
+              return op(.syscall, 0);
+            case "syscall1":
+              return op(.syscall, 1);
+            case "syscall2":
+              return op(.syscall, 2);
+            case "syscall3":
+              return op(.syscall, 3);
+            case "syscall4":
+              return op(.syscall, 4);
+            case "syscall5":
+              return op(.syscall, 5);
+            case "syscall6":
+              return op(.syscall, 6);
+            case "drop":
+              return op(.drop);
+            case "shr":
+              return op(.shr);
+            case "shl":
+              return op(.shl);
+            case "bor":
+              return op(.bitOr);
+            case "band":
+              return op(.bitAnd);
+            case "swap":
+              return op(.swap);
+            case "over":
+              return op(.over);
+            default:
+              throw SyntaxErrorException(token.location, "unknown word '${token.lexeme}'.");
           }
-          throw SyntaxErrorException(token.location, "unknown word '${token.lexeme}'.");
+        case TokenKind.number:
+          return op(.push, int.parse(token.lexeme));
+        case TokenKind.string:
+          throw UnimplementedError("string literals are not implemented yet.");
       }
+
     }).toList();
   }
 
@@ -288,7 +353,8 @@ class Parser {
   }
   
   List<Op> _parse() {
-    final tokens = _lex(code, filepath?.path);
+    final lexer = Lexer(code, filepath?.path);
+    final tokens = lexer.tokens;
     var ops = _tokensToOps(tokens);
     return _crossreferenceBlocks(ops);
   }

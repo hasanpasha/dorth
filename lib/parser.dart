@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:dorth/extensions.dart';
-import 'package:quiver/iterables.dart';
 
 import 'package:dorth/stack.dart';
 
@@ -106,9 +105,11 @@ class Lexer {
       } 
       _pushToken(.number);
     } else if (cur == '"') {
-      while (!_isAtEnd && !_match('"')) {
+      while (!_isAtEnd && _peek() != '"') {
         _advance();
       }
+      if (_isAtEnd && _prev() != '"') throw Exception("code ended without terminating a string.");
+      _advance();
       _pushToken(.string);
     } else if (cur == '/' && _peek() == '/') {
       while (!_isAtEnd && !_match('\n')) {
@@ -145,6 +146,7 @@ class Lexer {
   }
   
   String _peek() => _source[_current];
+  String _prev() => _source[_current-1];
   
   void _skipWhitespaces() {
     while (!_isAtEnd && _peek().isWhiteSpace) {
@@ -160,6 +162,7 @@ class Lexer {
     }
     return false;
   }
+  
 }
 
 class Token {
@@ -274,7 +277,7 @@ class Parser {
         case TokenKind.number:
           return op(.push, int.parse(token.lexeme));
         case TokenKind.string:
-          throw UnimplementedError("string literals are not implemented yet.");
+          throw UnimplementedError("string literals `${token.lexeme}` are not implemented yet.");
       }
 
     }).toList();

@@ -48,7 +48,9 @@ void main(List<String> arguments) async {
 }
 
 void repl() {
+  final parser = Parser();
   final interpreter = Interpreter();
+  
   interpreter.registerExitCallback((code) {
     print("going to exit with $code code.");
   });
@@ -62,7 +64,7 @@ void repl() {
     } 
 
     try {
-      final program = parseProgram(line);      
+      final program = parser.parse(line);
       interpreter.interpret(program);
     } catch (e) {
       print(e);

@@ -1,44 +1,42 @@
-mem 100 2 - + 1 .
+macro N 100 end
+macro str-buffer mem N + end
+macro write 1 1 syscall3 end
+macro Rule_110 110 end
+macro Inc 1 + end
+macro drop2 drop drop end
 
-0 while dup 100 < do
-    0 while dup 100 < do
+mem N 2 - + 1 .
+
+0 while dup N < do
+    0 while dup N < do
         dup mem + , if
-            // new
-            dup mem + 100 + 42 .
-            // mem 100 + 42 . // old
+            dup str-buffer + 42 .
         else
-            // new
-            dup mem + 100 + 32 .
-            // mem 100 + 32 . // old
+            dup str-buffer + 32 .
         end
-        // dup mem 100 + 1 1 syscall3 drop // old
         
-        1 +
+        Inc
     end drop
 
-    // new
-    mem 100 + // write buffer 
-    100 + // end of write buffer
+    mem N + 
+    N +
     10 .
-    // mem 100 + 10 . // old
-    // new
-    100 mem 100 + 1 1 syscall3 drop
-    // 1 mem 100 + 1 1 syscall3 drop // old
+    N 1 + str-buffer write drop
     
     // pattern
     mem 0 + , 1 shl  
     mem 1 + , 
     bor
     
-    1 while dup 100 2 - < do
+    1 while dup N 2 - < do
         swap 1 shl 7 band
         over mem + 1 + , bor // new pattern
-        2dup 110 swap shr 1 band // new value 
+        2dup Rule_110 swap shr 1 band // new value 
         swap mem + swap .
         swap
 
-        1 +
-    end drop drop
+        Inc
+    end drop2
 
-    1 +
+    Inc
 end drop

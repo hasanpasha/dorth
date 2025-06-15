@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:dorth/extensions.dart';
 
 import 'package:dorth/stack.dart';
@@ -190,16 +189,10 @@ class SyntaxErrorException implements Exception {
 }
 
 class Parser {
-  final String code;
-  final Uri? filepath;
+  final Map<String, Macro> macros = {};
 
-  Parser(this.code, this.filepath);
+  Parser();
 
-  static List<Op> parse({required String code, Uri? filepath}) {
-    final parser = Parser(code, filepath);
-
-    return parser._parse();
-  }
 
   List<Op> _tokensToOps(List<Token> tokens) {
     return tokens.map((token) {
@@ -281,14 +274,11 @@ class Parser {
           return op(.pushNum, int.parse(token.lexeme));
         case TokenKind.string:
           final str = unescape(token.lexeme.substring(1, token.lexeme.length-1));
-          // final str = _parseString(token.lexeme);
           return op(.pushStr, str);
       }
 
     }).toList();
   }
-
-  // Uint8List _parseString(String lexeme) {}
 
   List<Op> _crossreferenceBlocks(List<Op> ops) {
     final stack = Stack<int>();
@@ -363,16 +353,123 @@ class Parser {
     return ops;
   }
   
-  List<Op> _parse() {
+  List<Op> parse(String code, [Uri? filepath]) {
     final lexer = Lexer(code, filepath?.path);
-    final tokens = lexer.tokens;
+    List<Token> tokens = lexer.tokens;
+    tokens = _preprocess(tokens);
     var ops = _tokensToOps(tokens);
     return _crossreferenceBlocks(ops);
   }
+  
+  List<Token> _preprocess(List<Token> tokens) {
+    final List<Token> output = _parseMacros(tokens);
+    return _expandMacros(output);
+  }
+  
+  List<Token> _parseMacros(List<Token> tokens) {
+    final List<Token> output = [];
+    int i =0 ;
+    while (i < tokens.length) {
+      final token = tokens[i];
+      if (token.kind == .word && token.lexeme == "macro") {
+        if (i+1 == tokens.length) {
+          throw SyntaxErrorException(token.location, "tokens stream ended without finishing macro definition.");
+        }
+        i++;
+        final name = tokens[i];
+        if (macros.containsKey(name.lexeme)) {
+          throw SyntaxErrorException(token.location, "redefintion of a macro with the name `${name.lexeme}`.");
+        }
+        if (_builtinWords.contains(name.lexeme)) {
+          throw SyntaxErrorException(token.location, "macro can't have a name that is reserved for builtin words.");
+        }
+        final macro = Macro(token.location, <Token>[]);
+        i++;
+        int requiredEnds = 1;
+        while (true) {
+          if (i >= tokens.length) {
+            throw SyntaxErrorException(token.location, "tokens stream ended without ending macro `${name.lexeme}` definition.");
+          }
+          final macroToken = tokens[i];
+          i++;
+          if (macroToken.kind == .word && macroToken.lexeme == "end") {
+            requiredEnds--;
+            if (requiredEnds == 0) break;
+          }
+          if (macroToken.kind == .word && ["macro", "while", "if"].contains(macroToken.lexeme)) {
+            requiredEnds++;
+          }
+          macro.body.add(macroToken);
+        }
+        macros[name.lexeme] = macro;
+      } else {
+        output.add(token);
+        i++;
+      }
+    }
+    return output;
+  }
+  
+  static final List<String> _builtinWords = [ 
+    "dump",
+    "dup",
+    "2dup",
+    '+',
+    '-',
+    '=',
+    "!=",
+    '>',
+    ">=",
+    '<',
+    "<=",
+    "if",
+    "end",
+    "else",
+    "while",
+    "do",
+    "mem",
+    '.',
+    ',',
+    "syscall0",
+    "syscall1",
+    "syscall2",
+    "syscall3",
+    "syscall4",
+    "syscall5",
+    "syscall6",
+    "drop",
+    "shr",
+    "shl",
+    "bor",
+    "band",
+    "swap",
+    "over",
+  ];
+
+  List<Token> _expandMacros(List<Token> tokens) {
+    final List<Token> output = [];
+    for (var i = 0; i < tokens.length; i++) {
+      final token = tokens[i];
+      if (token.kind == .word && !_builtinWords.contains(token.lexeme) && macros.containsKey(token.lexeme)) {
+        final macro = macros[token.lexeme]!;
+        output.addAll(_preprocess(macro.body));
+      } else {
+        output.add(token);
+      }
+    }
+    return output;
+  }
+}
+
+class Macro {
+  final Location location;
+  final List<Token> body;
+
+  Macro(this.location, this.body);
 }
 
 List<Op> parseProgram(String source, [Uri? filepath]) {
-  return Parser.parse(code: source, filepath: filepath);
+  return Parser().parse(source, filepath);
 }
 
 Future<List<Op>> parseFile(Uri filepath) async {

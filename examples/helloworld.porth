@@ -1,1 +1,7 @@
-"hello, world!\n" 1 1 syscall3 drop
+macro write
+    macro SYS_write 1 end
+    macro FD_stdout 1 end
+    FD_stdout SYS_write syscall3
+end
+
+"hello, world!\n" write dump

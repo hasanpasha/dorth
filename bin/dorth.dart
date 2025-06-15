@@ -34,6 +34,7 @@ void main(List<String> arguments) async {
       while (true) {
         if (args.isEmpty) {
           print("Error: input file has not been provided for compilation.");
+          exit(1);
         }
         final arg = args.removeFirst();
         if (arg.startsWith('-')) {

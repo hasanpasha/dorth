@@ -13,32 +13,44 @@ void main(List<String> arguments) async {
   }
 
   final cmd = args.removeFirst();
-  if (args.isEmpty) {
-    print("Error: no input file is provided.");
-    exit(1);
-  }
-  final inputFilePath = args.removeFirst();
-  final inputFileUri = Uri.file(inputFilePath);
   
   switch (cmd) {
-    case "sim":
-      final program = await parseFile(inputFileUri);
-      interpretProgram(program);
+        case "sim":
+        if (args.isEmpty) {
+        print("Error: no input file is provided.");
+        exit(1);
+      }
+      final inputFilePath = args.removeFirst();
+      final inputFileUri = Uri.file(inputFilePath);
+      await interpretFile(inputFileUri);
       break;
     case "com":
-      final program = await parseFile(inputFileUri);
-      final asmUri = inputFileUri.replaceExtension('.S');
-      await compileProgram(program, asmUri);
-      final objUri = asmUri.replaceExtension('.o');
-      await command(["as", asmUri.path, "-o", objUri.path]);
-      final exeUri = asmUri.replaceExtension('');
-      await command(["ld", objUri.path, "-o", exeUri.path]);
-      if (args.isNotEmpty) {
-        final flag = args.removeFirst();
-        if (flag == "-r") {
-          await command([exeUri.path], verbose: true);
+      if (args.isEmpty) {
+        print("Error: no args is provided for compilation mode.");
+        exit(1);
+      }
+      bool run = false;
+      late final inputFileUri;
+      while (true) {
+        if (args.isEmpty) {
+          print("Error: input file has not been provided for compilation.");
+        }
+        final arg = args.removeFirst();
+        if (arg.startsWith('-')) {
+          if (arg == "-r" || arg == "--run") {
+            run = true;
+          } else if (arg == "-nr" || arg == "--no-run") {
+            run = false;
+          } else {
+            print("Error: unknown flag `$arg`.");
+            exit(1);
+          }
+        } else {
+          inputFileUri = Uri.file(arg);
+          break;
         }
       }
+      await compileFile(inputFileUri, run: run);
       break;
     default:
       usage();
@@ -73,48 +85,10 @@ void repl() {
   exit(0);
 }
 
-extension UriPathExtension on Uri {
-  String baseFilename() {
-    return pathSegments.last;
-  }
-
-  String baseFilenameWithoutExtension() {
-    final parts = baseFilename().split('.');
-    if (parts.length == 1) return parts.first;
-    parts.removeLast();
-    return parts.join();
-  }
-
-  Uri replaceExtension(String newExtension) {
-    final newFilenamem = "${baseFilenameWithoutExtension()}$newExtension";
-    final pathSegms = pathSegments.toList();
-    pathSegms.removeLast();
-    pathSegms.add(newFilenamem);
-    final newPath = replace(pathSegments: pathSegms);
-    return newPath;
-  }
-}
-
 void usage() {
   print(
 """Usage: dorth <subcommand> [args]
 SUBCOMMANDS:
-    sim    <file>    simulate the program.
-    com    <file>    compile the program."""); 
-}
-
-Future<bool> command(List<String> args, {bool verbose = false}) async {
-  print("\$ ${args.join(' ')}");
-  final result = await Process.run(args.first, args.sublist(1));
-  
-  if (verbose) {
-    stdout.write(result.stdout.toString());
-  }
-  
-  if (result.exitCode != 0) {
-    print("abnormal exit ${result.exitCode}: ${result.stderr}");
-    return false;
-  }
-  
-  return true;
+    sim         <file>    simulate the program.
+    com  [-r]   <file>    compile the program."""); 
 }
